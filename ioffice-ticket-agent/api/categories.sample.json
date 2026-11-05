@@ -1,0 +1,14 @@
+[
+  { "id": "101", "name": "HVAC", "path": "Facilities > HVAC", "description": "Heating, air conditioning, ventilation, rooms too hot or too cold, thermostat problems, drafts, odd smells from vents." },
+  { "id": "102", "name": "Plumbing", "path": "Facilities > Plumbing", "description": "Leaks, clogged or overflowing toilets and sinks, no hot water, dripping taps, water on the floor." },
+  { "id": "103", "name": "Electrical & Lighting", "path": "Facilities > Electrical & Lighting", "description": "Lights out or flickering, dead power outlets, tripped breakers, no power to an area." },
+  { "id": "104", "name": "Cleaning & Janitorial", "path": "Facilities > Cleaning & Janitorial", "description": "Spills, rubbish not collected, restroom supplies, dirty kitchens or meeting rooms, pests." },
+  { "id": "105", "name": "Furniture", "path": "Facilities > Furniture", "description": "Broken chairs or desks, sit-stand desk faults, requests for new or extra furniture, ergonomic equipment." },
+  { "id": "106", "name": "Doors, Locks & Keys", "path": "Facilities > Doors, Locks & Keys", "description": "Doors that won't close or lock, broken handles, key or lock change requests." },
+  { "id": "107", "name": "General Maintenance", "path": "Facilities > General Maintenance", "description": "Building repairs that fit no other facilities category: walls, ceilings, flooring, windows, blinds." },
+  { "id": "201", "name": "Moves, Adds & Changes", "path": "Space > Moves, Adds & Changes", "description": "Moving a person or team to a different desk or office, new starter seating, leaver desk clean-up." },
+  { "id": "202", "name": "Room Setup", "path": "Space > Room Setup", "description": "Arranging a room or event space: table layouts, extra chairs, catering setup." },
+  { "id": "301", "name": "Mail & Shipping", "path": "Mail Services > Mail & Shipping", "description": "Missing or misdelivered mail or parcels, courier pickups, outgoing shipments." },
+  { "id": "401", "name": "Security & Access Badges", "path": "Security > Security & Access Badges", "description": "Badge not working, new or replacement badge, access to a restricted area, security concerns." },
+  { "id": "501", "name": "Parking", "path": "Other > Parking", "description": "Parking permits, parking space allocation, problems in the car park." }
+]

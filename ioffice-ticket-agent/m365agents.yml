@@ -1,0 +1,35 @@
+# Microsoft 365 Agents Toolkit project file (VS Code extension: "Microsoft 365 Agents Toolkit").
+# "Provision" registers the app and installs the agent for you in Microsoft 365 Copilot.
+# Older versions of the toolkit (Teams Toolkit) read teamsapp.yml: rename this file if needed.
+# yaml-language-server: $schema=https://aka.ms/m365-agents-toolkits/v1.8/yaml.schema.json
+version: v1.8
+
+environmentFolderPath: ./env
+
+provision:
+  - uses: teamsApp/create
+    with:
+      name: ioffice-ticket-agent${{APP_NAME_SUFFIX}}
+    writeToEnvironmentFile:
+      teamsAppId: TEAMS_APP_ID
+
+  - uses: teamsApp/zipAppPackage
+    with:
+      manifestPath: ./appPackage/manifest.json
+      outputZipPath: ./appPackage/build/appPackage.${{TEAMSFX_ENV}}.zip
+      outputFolder: ./appPackage/build
+
+  - uses: teamsApp/validateAppPackage
+    with:
+      appPackagePath: ./appPackage/build/appPackage.${{TEAMSFX_ENV}}.zip
+
+  - uses: teamsApp/update
+    with:
+      appPackagePath: ./appPackage/build/appPackage.${{TEAMSFX_ENV}}.zip
+
+  - uses: teamsApp/extendToM365
+    with:
+      appPackagePath: ./appPackage/build/appPackage.${{TEAMSFX_ENV}}.zip
+    writeToEnvironmentFile:
+      titleId: M365_TITLE_ID
+      appId: M365_APP_ID

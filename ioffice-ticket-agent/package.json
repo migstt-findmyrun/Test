@@ -1,0 +1,14 @@
+{
+  "name": "ioffice-ticket-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Microsoft 365 Copilot declarative agent that turns emails into iOFFICE service requests.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node api/server.js",
+    "test": "node --test api/server.test.js",
+    "package": "node scripts/build-package.js"
+  }
+}

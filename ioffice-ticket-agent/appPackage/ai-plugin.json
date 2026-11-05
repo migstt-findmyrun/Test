@@ -1,0 +1,87 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/copilot/plugin/v2.2/schema.json",
+  "schema_version": "v2.2",
+  "name_for_human": "iOFFICE Tickets",
+  "namespace": "ioffice",
+  "description_for_human": "Look up iOFFICE service request categories and create service request tickets.",
+  "description_for_model": "Use listCategories to get the valid iOFFICE service request categories before choosing one. Use createServiceRequest to create a ticket only after the user has confirmed the draft.",
+  "functions": [
+    {
+      "name": "listCategories",
+      "description": "Returns the iOFFICE service request categories, each with an id, a name, its parent path and a description of what belongs in it.",
+      "capabilities": {
+        "response_semantics": {
+          "data_path": "$.categories",
+          "properties": {
+            "title": "$.name",
+            "subtitle": "$.path"
+          }
+        }
+      }
+    },
+    {
+      "name": "createServiceRequest",
+      "description": "Creates an iOFFICE service request ticket in the given category. Call only after the user confirms the ticket details.",
+      "capabilities": {
+        "confirmation": {
+          "type": "AdaptiveCard",
+          "title": "Create this iOFFICE ticket?",
+          "body": "**Category:** {{function.parameters.categoryId}}\n\n**Subject:** {{function.parameters.subject}}\n\n**Priority:** {{function.parameters.priority}}\n\n**Requester:** {{function.parameters.requesterEmail}}"
+        },
+        "response_semantics": {
+          "data_path": "$",
+          "properties": {
+            "title": "$.ticketNumber",
+            "subtitle": "$.categoryName",
+            "url": "$.url"
+          },
+          "static_template": {
+            "type": "AdaptiveCard",
+            "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+            "version": "1.5",
+            "body": [
+              {
+                "type": "TextBlock",
+                "text": "iOFFICE ticket ${ticketNumber} created",
+                "weight": "Bolder",
+                "size": "Medium",
+                "wrap": true
+              },
+              {
+                "type": "FactSet",
+                "facts": [
+                  { "title": "Category", "value": "${categoryName}" },
+                  { "title": "Subject", "value": "${subject}" },
+                  { "title": "Priority", "value": "${priority}" },
+                  { "title": "Status", "value": "${status}" }
+                ]
+              }
+            ],
+            "actions": [
+              {
+                "type": "Action.OpenUrl",
+                "title": "Open in iOFFICE",
+                "url": "${url}"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "runtimes": [
+    {
+      "type": "OpenApi",
+      "auth": {
+        "type": "None"
+      },
+      "spec": {
+        "url": "apiSpecificationFile/openapi.yaml"
+      },
+      "run_for_functions": [
+        "listCategories",
+        "createServiceRequest"
+      ]
+    }
+  ]
+}

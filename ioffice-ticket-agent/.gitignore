@@ -1,0 +1,5 @@
+node_modules/
+appPackage/build/
+env/.env.*.user
+.env
+.DS_Store

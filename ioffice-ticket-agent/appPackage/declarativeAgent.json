@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/copilot/declarative-agent/v1.4/schema.json",
+  "version": "v1.4",
+  "name": "iOFFICE Ticket Assistant",
+  "description": "Reads an email, picks the matching iOFFICE service request category, and creates the ticket after you confirm.",
+  "instructions": "$[file('instruction.txt')]",
+  "capabilities": [
+    {
+      "name": "Email"
+    }
+  ],
+  "conversation_starters": [
+    {
+      "title": "Ticket from this email",
+      "text": "Create an iOFFICE ticket from the email I have open."
+    },
+    {
+      "title": "Ticket from latest email",
+      "text": "Create an iOFFICE ticket from my most recent email about a facilities problem."
+    },
+    {
+      "title": "Which category?",
+      "text": "Which iOFFICE category would this go in: the AC on floor 3 is blowing warm air."
+    },
+    {
+      "title": "List categories",
+      "text": "Show me the iOFFICE service request categories."
+    }
+  ],
+  "actions": [
+    {
+      "id": "iofficePlugin",
+      "file": "ai-plugin.json"
+    }
+  ]
+}

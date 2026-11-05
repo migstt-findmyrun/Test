@@ -1,0 +1,132 @@
+openapi: 3.0.3
+info:
+  title: iOFFICE Ticket Bridge
+  description: >
+    A small API that sits between the Copilot agent and iOFFICE. It keeps the
+    iOFFICE credentials on the server and translates requests into iOFFICE's
+    REST API format. In mock mode it returns sample data instead.
+  version: 1.0.0
+servers:
+  - url: ${{OPENAPI_SERVER_URL}}
+paths:
+  /api/categories:
+    get:
+      operationId: listCategories
+      summary: List service request categories
+      description: Returns every iOFFICE service request category the agent may choose from.
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Optional words to filter categories by name or description.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The categories.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  categories:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Category"
+  /api/tickets:
+    post:
+      operationId: createServiceRequest
+      summary: Create a service request ticket
+      description: Creates an iOFFICE service request in the given category.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewTicket"
+      responses:
+        "201":
+          description: The ticket was created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ticket"
+        "400":
+          description: The request was invalid, for example an unknown categoryId.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The iOFFICE category id. Use this value as categoryId.
+        name:
+          type: string
+          description: Category name.
+        path:
+          type: string
+          description: Full path, for example "Facilities > HVAC".
+        description:
+          type: string
+          description: What kinds of requests belong in this category.
+    NewTicket:
+      type: object
+      required:
+        - categoryId
+        - subject
+        - description
+        - requesterEmail
+      properties:
+        categoryId:
+          type: string
+          description: The id of a category returned by listCategories.
+        subject:
+          type: string
+          description: Short ticket title, at most 80 characters.
+        description:
+          type: string
+          description: Full ticket description written from the email.
+        requesterEmail:
+          type: string
+          description: Email address of the person the request is for.
+        location:
+          type: string
+          description: Building, floor or room, if known.
+        priority:
+          type: string
+          enum: [Low, Normal, High, Urgent]
+          default: Normal
+          description: Ticket priority.
+        sourceEmailSubject:
+          type: string
+          description: Subject line of the original email.
+    Ticket:
+      type: object
+      properties:
+        id:
+          type: string
+        ticketNumber:
+          type: string
+        categoryId:
+          type: string
+        categoryName:
+          type: string
+        subject:
+          type: string
+        priority:
+          type: string
+        status:
+          type: string
+        url:
+          type: string
+          description: Link to the ticket in iOFFICE.
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
