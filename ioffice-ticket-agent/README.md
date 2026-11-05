@@ -3,17 +3,18 @@
 A Microsoft 365 Copilot agent that reads an email, picks the matching iOFFICE
 service request category, shows you a draft, and creates the ticket after you confirm.
 
+**Self-contained: no server to host.** Copilot calls the iOFFICE REST API directly.
+The iOFFICE secret is kept in Microsoft 365's API key vault, not in this repo or the package.
+
 ```
-Copilot (Outlook / Teams / copilot.microsoft.com)
+Copilot (Outlook / Teams / Microsoft 365 Copilot app)
    │  "Create an iOFFICE ticket from this email"
    ▼
 Declarative agent  (appPackage/: instructions + API plugin)
    │  listCategories → AI picks a category → you confirm → createServiceRequest
+   │  (Copilot adds the iOFFICE secret from the Microsoft 365 API key vault)
    ▼
-Bridge API  (api/server.js, holds the iOFFICE credentials)
-   │  mock mode: sample data      live mode: your iOFFICE REST API
-   ▼
-iOFFICE
+iOFFICE REST API  (https://yourorg.iofficeconnect.com/...)
 ```
 
 ## What's in here
@@ -23,107 +24,104 @@ iOFFICE
 | `appPackage/manifest.json` | App manifest that registers the agent in Microsoft 365. |
 | `appPackage/declarativeAgent.json` | The agent: name, conversation starters, the Email capability and the plugin. |
 | `appPackage/instruction.txt` | The agent's instructions: how it finds the email, picks a category and drafts the ticket. **Edit this to tune behaviour.** |
-| `appPackage/ai-plugin.json` | API plugin: the two actions, the confirmation card and the "ticket created" card. |
-| `appPackage/apiSpecificationFile/openapi.yaml` | OpenAPI description of the bridge API that Copilot calls. |
-| `api/server.js` | The bridge API (Node 22, no dependencies). Mock mode by default. |
-| `api/categories.sample.json` | Sample categories for mock mode. Replace with your real categories to test matching. |
-| `api/ioffice-live.js` | Live iOFFICE calls. **Placeholders, see "Connecting to the real iOFFICE" below.** |
-| `scripts/build-package.js` | Builds the app package zip without the Agents Toolkit. |
-| `m365agents.yml`, `env/.env.dev` | Microsoft 365 Agents Toolkit project files. |
+| `appPackage/ai-plugin.json` | API plugin: the two actions, the confirmation card, the "ticket created" card, and the API key vault reference. |
+| `appPackage/apiSpecificationFile/openapi.yaml` | Description of the iOFFICE endpoints the agent calls. **Contains placeholders (`TODO`).** |
+| `env/.env.dev` | Settings for your instance (non-secret). |
+| `m365agents.yml` | Microsoft 365 Agents Toolkit project file: registers the key and installs the agent. |
+| `scripts/build-package.js` | Builds the app package zip without the toolkit. |
+| `scripts/package.test.js` | Checks the package files agree with each other (`npm test`). |
 
-## Before you start: check you can test agents
+## Step 1: Get the details from your iOFFICE admin
 
-- You need a **Microsoft 365 Copilot licence** (or pay-as-you-go Copilot agents enabled by your admin).
-- Your Microsoft 365 admin must allow **uploading custom apps** (sideloading) for you, in the
-  Teams admin center under *Teams apps > Setup policies*, or approve the agent in the
-  Microsoft 365 admin center under *Integrated apps*.
-- Copilot calls your API from Microsoft's cloud, so the bridge API needs a **public HTTPS URL**.
-  For testing, use a dev tunnel (below). For production, host it in Azure (App Service or Functions).
+The iOFFICE API reference isn't public, so `openapi.yaml` contains educated guesses. Ask for:
 
-## Test it with mock data (no iOFFICE needed)
+1. **The REST API base address**, e.g. `https://yourorg.iofficeconnect.com/external/api/rest/v2`.
+2. **How it authenticates.** This decides whether the no-server setup works:
+   - **A single API token in a header** works well. Put the header name in
+     `IOFFICE_AUTH_HEADER` and remove the `AuthUsername` parameter from `openapi.yaml`.
+   - **Username and password in two headers** (e.g. `x-auth-username` and `x-auth-password`).
+     The vault holds one secret, so the password goes in the vault and the username is sent as
+     a fixed header parameter (`IOFFICE_USERNAME`). This is how the files are set up now.
+     **It's a workaround: test it early.** If Copilot won't send the username header,
+     ask Eptura for token-based access.
+   - **OAuth**: also supported by Copilot (`OAuthPluginVault`), but it needs different setup.
+3. **A dedicated integration user** with permission only to read categories and create
+   service requests.
+4. **The endpoint that lists service request categories** and what its response looks like.
+5. **The endpoint that creates a service request**, its required fields and its response.
+6. **What a link to a ticket looks like** in the iOFFICE web app.
 
-### 1. Run the bridge API
+Then update `openapi.yaml`. Each `TODO` marks a path, field name or header to check. If the
+response field names differ, also update `response_semantics` and the card in `ai-plugin.json`.
 
-```bash
-npm test      # 5 tests for the API
-npm start     # http://localhost:3978 in mock mode
-```
+## Step 2: Fill in the settings
 
-Try it: open http://localhost:3978/api/categories in a browser.
+Edit `env/.env.dev`: `IOFFICE_API_BASE_URL`, `IOFFICE_AUTH_HEADER`, `IOFFICE_USERNAME`,
+`IOFFICE_TICKET_URL_PREFIX`. None of these are secret.
 
-### 2. Give it a public HTTPS address
+## Step 3: Install the agent
 
-With [Microsoft dev tunnels](https://learn.microsoft.com/azure/developer/dev-tunnels/get-started):
+You need a **Microsoft 365 Copilot licence** (or pay-as-you-go agents enabled by your admin),
+and your admin must allow **uploading custom apps** (Teams admin center > Teams apps > Setup
+policies), or approve the agent under Microsoft 365 admin center > Integrated apps.
 
-```bash
-devtunnel user login
-devtunnel host -p 3978 --allow-anonymous
-```
+### Option A: Microsoft 365 Agents Toolkit (recommended)
 
-Copy the `https://….devtunnels.ms` URL it prints into `OPENAPI_SERVER_URL` in `env/.env.dev`.
+1. Install the **Microsoft 365 Agents Toolkit** extension in VS Code and open this folder.
+2. Create `env/.env.dev.user` (git-ignored) with the secret:
+   ```
+   SECRET_IOFFICE_API_KEY=the-integration-user-password-or-token
+   ```
+3. Sign in with your Microsoft 365 account in the toolkit and choose **Provision**. It
+   registers the app, stores the secret in the API key vault, fills in `TEAMS_APP_ID` and
+   `IOFFICE_API_KEY_REGISTRATION_ID`, and installs the agent for you.
 
-> The tunnel is anonymous, so anyone with the URL can call the mock API. That's fine for
-> sample data. Don't run live mode through an anonymous tunnel. See "Security" below.
+### Option B: by hand
 
-### 3. Install the agent (choose one)
+1. Put a new GUID in `TEAMS_APP_ID` in `env/.env.dev` (any GUID generator, or
+   `node -e "console.log(crypto.randomUUID())"`).
+2. In the **Teams Developer Portal** (https://dev.teams.microsoft.com), go to
+   **Tools > API key registration > New API key**:
+   - **API key:** the integration user's password or token.
+   - **Base URL:** the same value as `IOFFICE_API_BASE_URL`.
+   - **Target tenant:** your organization only.
+   - **Restrict usage by app:** your `TEAMS_APP_ID` (or *Any Teams app* while testing).
+   Save, and copy the **API key registration ID** into `IOFFICE_API_KEY_REGISTRATION_ID`.
+3. `npm run package` creates `appPackage/build/appPackage.dev.zip`.
+4. In Teams: **Apps > Manage your apps > Upload an app > Upload a custom app** and choose the zip.
 
-**A. Microsoft 365 Agents Toolkit (recommended).**
-Install the *Microsoft 365 Agents Toolkit* extension in VS Code, open this folder, sign in with
-your Microsoft 365 account, and choose **Provision** in the toolkit panel. It registers the app,
-fills in `TEAMS_APP_ID`, and installs the agent for you.
-
-**B. Upload the package by hand.**
-
-```bash
-npm run package   # creates appPackage/build/appPackage.dev.zip
-```
-
-In Teams: **Apps > Manage your apps > Upload an app > Upload a custom app** and choose the zip.
-
-### 4. Try it
+## Step 4: Try it
 
 Open Copilot (in Outlook, Teams or https://m365.cloud.microsoft/chat), pick **iOFFICE Tickets
 (dev)** from the agents list, and try:
 
-- *"Show me the iOFFICE service request categories."*
+- *"Show me the iOFFICE service request categories."* This tests the login and category list
+  without creating anything.
 - *"Which category would this go in: the AC on floor 3 is blowing warm air."*
-- *"Create an iOFFICE ticket from my most recent email about a facilities problem."*
 - With an email open in Outlook: *"Create an iOFFICE ticket from this email."*
 
-You should see a draft, then a **confirmation card**, then a **"ticket created"** card. The
-bridge API prints each ticket it "creates" in the terminal.
+If you can, point `IOFFICE_API_BASE_URL` at an iOFFICE **test or sandbox instance** first,
+so test tickets don't reach the real service desk.
 
 ### What to check while testing
 
-- Does it pick the **right category** for your real emails? Put your real categories (with
-  good descriptions) in `api/categories.sample.json`. The descriptions matter most.
+- Does it pick the **right category** for your real emails? Category descriptions in iOFFICE
+  matter most. If your categories have none, add guidance to `instruction.txt` (e.g. "badge and
+  door access problems go in Security & Access Badges").
 - Does it ask you to choose when it's unsure, rather than guessing?
 - Does it find **the open email** in Outlook? How well this works depends on where Copilot is
   opened. If it doesn't, it can still search your mailbox (Email capability) or use pasted text.
 - Is the drafted subject and description what your service desk wants to see?
 
-Change `appPackage/instruction.txt`, then provision or upload again to apply the change.
+After changing any file in `appPackage/`, run `npm test`, then provision or upload again.
 
-## Connecting to the real iOFFICE
+## Security notes
 
-1. Get from your iOFFICE admin or Eptura: an **integration user**, how the REST API
-   **authenticates**, the endpoint that **lists categories**, the endpoint that **creates a
-   service request** with its required fields, and how ticket links look in the iOFFICE UI.
-2. Update `api/ioffice-live.js`. Every `TODO` marks a guess to replace: paths, auth headers,
-   field names.
-3. Set these as environment variables or app settings on the server (never commit them):
-   `IOFFICE_MODE=live`, `IOFFICE_BASE_URL`, `IOFFICE_USERNAME`, `IOFFICE_PASSWORD`,
-   `IOFFICE_CATEGORIES_PATH`, `IOFFICE_CREATE_PATH`, `IOFFICE_TICKET_URL`.
-4. Start it (`npm start`) and test with `curl` before connecting the agent.
-
-## Security (before real use)
-
-The test setup uses `"auth": { "type": "None" }` in `ai-plugin.json`, so the bridge API accepts
-calls from anyone who knows its URL. Before connecting it to the real iOFFICE:
-
-- Protect the bridge with **Microsoft Entra ID (OAuth)**, so only signed-in users in your
-  organization can call it, and register the OAuth client in the Teams Developer Portal. The
-  plugin's `auth` becomes `OAuthPluginVault` with your `reference_id`.
-- With Entra ID in place, the bridge knows **who** is asking, so it can set the iOFFICE
-  requester from the signed-in user instead of trusting the email address in the request.
-- Keep iOFFICE credentials in Azure Key Vault or app settings, not in this repo.
+- The secret lives only in the Microsoft 365 API key vault (and your git-ignored
+  `env/.env.dev.user`). Never commit it.
+- Everyone who uses the agent creates tickets **as the integration user**. The real requester
+  is in the ticket's requester field, and the agent fills that in from the email. Give the
+  integration user the smallest permissions that work.
+- Copilot always shows a confirmation card before creating a ticket.
+- To create tickets as each signed-in person instead, iOFFICE would need to support OAuth
+  sign-in (`OAuthPluginVault`). Ask Eptura whether it does.

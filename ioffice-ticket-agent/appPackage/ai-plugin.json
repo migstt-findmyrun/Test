@@ -8,13 +8,13 @@
   "functions": [
     {
       "name": "listCategories",
-      "description": "Returns the iOFFICE service request categories, each with an id, a name, its parent path and a description of what belongs in it.",
+      "description": "Returns the iOFFICE service request categories, each with an id, a name, a description of what belongs in it, and its parent category.",
       "capabilities": {
         "response_semantics": {
-          "data_path": "$.categories",
+          "data_path": "$",
           "properties": {
             "title": "$.name",
-            "subtitle": "$.path"
+            "subtitle": "$.parent.name"
           }
         }
       }
@@ -26,14 +26,13 @@
         "confirmation": {
           "type": "AdaptiveCard",
           "title": "Create this iOFFICE ticket?",
-          "body": "**Category:** {{function.parameters.categoryId}}\n\n**Subject:** {{function.parameters.subject}}\n\n**Priority:** {{function.parameters.priority}}\n\n**Requester:** {{function.parameters.requesterEmail}}"
+          "body": "**Subject:** {{function.parameters.subject}}\n\n**Priority:** {{function.parameters.priority}}\n\n**Location:** {{function.parameters.location}}"
         },
         "response_semantics": {
           "data_path": "$",
           "properties": {
-            "title": "$.ticketNumber",
-            "subtitle": "$.categoryName",
-            "url": "$.url"
+            "title": "$.id",
+            "subtitle": "$.category.name"
           },
           "static_template": {
             "type": "AdaptiveCard",
@@ -42,7 +41,7 @@
             "body": [
               {
                 "type": "TextBlock",
-                "text": "iOFFICE ticket ${ticketNumber} created",
+                "text": "iOFFICE ticket ${id} created",
                 "weight": "Bolder",
                 "size": "Medium",
                 "wrap": true
@@ -50,10 +49,10 @@
               {
                 "type": "FactSet",
                 "facts": [
-                  { "title": "Category", "value": "${categoryName}" },
+                  { "title": "Category", "value": "${category.name}" },
                   { "title": "Subject", "value": "${subject}" },
                   { "title": "Priority", "value": "${priority}" },
-                  { "title": "Status", "value": "${status}" }
+                  { "title": "Status", "value": "${status.name}" }
                 ]
               }
             ],
@@ -61,7 +60,7 @@
               {
                 "type": "Action.OpenUrl",
                 "title": "Open in iOFFICE",
-                "url": "${url}"
+                "url": "${{IOFFICE_TICKET_URL_PREFIX}}${id}"
               }
             ]
           }
@@ -73,7 +72,8 @@
     {
       "type": "OpenApi",
       "auth": {
-        "type": "None"
+        "type": "ApiKeyPluginVault",
+        "reference_id": "${{IOFFICE_API_KEY_REGISTRATION_ID}}"
       },
       "spec": {
         "url": "apiSpecificationFile/openapi.yaml"

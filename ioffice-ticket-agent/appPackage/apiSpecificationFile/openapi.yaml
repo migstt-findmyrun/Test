@@ -1,99 +1,140 @@
 openapi: 3.0.3
 info:
-  title: iOFFICE Ticket Bridge
+  title: iOFFICE Service Requests
   description: >
-    A small API that sits between the Copilot agent and iOFFICE. It keeps the
-    iOFFICE credentials on the server and translates requests into iOFFICE's
-    REST API format. In mock mode it returns sample data instead.
+    The parts of the iOFFICE REST API that the Copilot agent calls directly.
+    Copilot sends the iOFFICE API key/secret from its secure vault, so no
+    separate server is needed.
+
+    TODO: every item marked "TODO" is a placeholder. Check it against the
+    iOFFICE REST API documentation for your instance before using the agent.
   version: 1.0.0
 servers:
-  - url: ${{OPENAPI_SERVER_URL}}
+  # e.g. https://yourorg.iofficeconnect.com/external/api/rest/v2 (set in env/.env.dev)
+  - url: ${{IOFFICE_API_BASE_URL}}
+security:
+  - iofficeApiKey: []
 paths:
-  /api/categories:
+  # TODO: confirm the path that lists service request categories.
+  /services/categories:
     get:
       operationId: listCategories
       summary: List service request categories
-      description: Returns every iOFFICE service request category the agent may choose from.
+      description: Returns the iOFFICE service request categories. Use the id of one of these as categoryId.
       parameters:
-        - name: search
-          in: query
-          required: false
-          description: Optional words to filter categories by name or description.
-          schema:
-            type: string
+        - $ref: "#/components/parameters/AuthUsername"
       responses:
         "200":
           description: The categories.
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  categories:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Category"
-  /api/tickets:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+  # TODO: confirm the path that creates a service request.
+  /services/requests:
     post:
       operationId: createServiceRequest
       summary: Create a service request ticket
       description: Creates an iOFFICE service request in the given category.
+      parameters:
+        - $ref: "#/components/parameters/AuthUsername"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/NewTicket"
+              $ref: "#/components/schemas/NewServiceRequest"
       responses:
+        "200":
+          description: The created ticket.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceRequest"
         "201":
-          description: The ticket was created.
+          description: The created ticket.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Ticket"
-        "400":
-          description: The request was invalid, for example an unknown categoryId.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/ServiceRequest"
 components:
+  securitySchemes:
+    # The secret part of the login, stored in the Microsoft 365 API key vault
+    # (never in this repo). TODO: confirm the header name iOFFICE expects; set it
+    # with IOFFICE_AUTH_HEADER in env/.env.dev.
+    iofficeApiKey:
+      type: apiKey
+      in: header
+      name: ${{IOFFICE_AUTH_HEADER}}
+  parameters:
+    # TODO: only needed if iOFFICE wants a username header next to the secret.
+    # If your instance uses a single API token, delete this parameter and the
+    # two "$ref: AuthUsername" lines above.
+    AuthUsername:
+      name: x-auth-username
+      in: header
+      required: true
+      description: The iOFFICE integration user's username. Always send exactly this value.
+      schema:
+        type: string
+        enum:
+          - ${{IOFFICE_USERNAME}}
+        default: ${{IOFFICE_USERNAME}}
   schemas:
+    # TODO: match these field names to iOFFICE's responses and request body.
     Category:
       type: object
       properties:
         id:
-          type: string
-          description: The iOFFICE category id. Use this value as categoryId.
+          type: integer
+          description: The category id. Use this as categoryId.
         name:
           type: string
           description: Category name.
-        path:
-          type: string
-          description: Full path, for example "Facilities > HVAC".
         description:
           type: string
           description: What kinds of requests belong in this category.
-    NewTicket:
+        parent:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+              description: Name of the parent category, e.g. "Facilities".
+    NewServiceRequest:
       type: object
       required:
-        - categoryId
+        - category
         - subject
         - description
-        - requesterEmail
+        - requester
       properties:
-        categoryId:
-          type: string
-          description: The id of a category returned by listCategories.
+        category:
+          type: object
+          required:
+            - id
+          properties:
+            id:
+              type: integer
+              description: The id of a category returned by listCategories.
         subject:
           type: string
+          maxLength: 80
           description: Short ticket title, at most 80 characters.
         description:
           type: string
           description: Full ticket description written from the email.
-        requesterEmail:
-          type: string
-          description: Email address of the person the request is for.
+        requester:
+          type: object
+          required:
+            - email
+          properties:
+            email:
+              type: string
+              description: Email address of the person the request is for.
         location:
           type: string
           description: Building, floor or room, if known.
@@ -102,31 +143,24 @@ components:
           enum: [Low, Normal, High, Urgent]
           default: Normal
           description: Ticket priority.
-        sourceEmailSubject:
-          type: string
-          description: Subject line of the original email.
-    Ticket:
+    ServiceRequest:
       type: object
       properties:
         id:
-          type: string
-        ticketNumber:
-          type: string
-        categoryId:
-          type: string
-        categoryName:
-          type: string
+          type: integer
         subject:
           type: string
         priority:
           type: string
+        category:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
         status:
-          type: string
-        url:
-          type: string
-          description: Link to the ticket in iOFFICE.
-    Error:
-      type: object
-      properties:
-        error:
-          type: string
+          type: object
+          properties:
+            name:
+              type: string

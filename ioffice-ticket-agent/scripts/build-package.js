@@ -28,15 +28,19 @@ function readEnv(file) {
 }
 
 let env = readEnv(envFile);
+const unset = Object.entries(env)
+  .filter(([k, v]) => v.includes("REPLACE-ME") || (k === "IOFFICE_API_KEY_REGISTRATION_ID" && !v))
+  .map(([k]) => k);
+if (unset.length) {
+  console.error(`Fill in ${unset.join(", ")} in ${path.relative(root, envFile)} first (see README).`);
+  process.exit(1);
+}
+
 if (!env.TEAMS_APP_ID) {
   env.TEAMS_APP_ID = crypto.randomUUID();
   const text = fs.readFileSync(envFile, "utf8").replace(/^TEAMS_APP_ID=.*$/m, `TEAMS_APP_ID=${env.TEAMS_APP_ID}`);
   fs.writeFileSync(envFile, text);
   console.log(`Created TEAMS_APP_ID=${env.TEAMS_APP_ID} in ${path.relative(root, envFile)}`);
-}
-if (!env.OPENAPI_SERVER_URL || env.OPENAPI_SERVER_URL.includes("REPLACE-ME")) {
-  console.error(`Set OPENAPI_SERVER_URL in ${path.relative(root, envFile)} to the public HTTPS URL of the bridge API.`);
-  process.exit(1);
 }
 
 function substitute(text, file) {

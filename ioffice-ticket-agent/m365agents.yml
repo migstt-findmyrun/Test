@@ -13,6 +13,17 @@ provision:
     writeToEnvironmentFile:
       teamsAppId: TEAMS_APP_ID
 
+  # Stores the iOFFICE secret in the Microsoft 365 API key vault. The value comes from
+  # SECRET_IOFFICE_API_KEY in env/.env.dev.user (git-ignored), never from this repo.
+  - uses: apiKey/register
+    with:
+      name: iofficeApiKey
+      appId: ${{TEAMS_APP_ID}}
+      primaryClientSecret: ${{SECRET_IOFFICE_API_KEY}}
+      apiSpecPath: ./appPackage/apiSpecificationFile/openapi.yaml
+    writeToEnvironmentFile:
+      registrationId: IOFFICE_API_KEY_REGISTRATION_ID
+
   - uses: teamsApp/zipAppPackage
     with:
       manifestPath: ./appPackage/manifest.json
